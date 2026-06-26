@@ -169,6 +169,42 @@
             object-fit: cover;
         }
 
+        .btn-documento {
+            display: inline-block;
+            background: #444;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .btn-documento:hover {
+            background: var(--cor-destaque);
+        }
+
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            max-width: 100%;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            background: #000;
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
         .info-privada {
             background: #e6e6e6;
             padding: 15px;
@@ -246,6 +282,11 @@
         </div>
 
         <div class="form-group">
+            <label for="video">Link de Vídeo do YouTube (Opcional)</label>
+            <input type="text" id="video" placeholder="Ex: https://www.youtube.com/watch?v=XXXXXX ou https://youtu.be/XXXXXX">
+        </div>
+
+        <div class="form-group">
             <label for="validade">Tempo de Exposição do Pedido *</label>
             <select id="validade" required>
                 <option value="7">1 Semana</option>
@@ -255,8 +296,8 @@
         </div>
 
         <div class="form-group">
-            <label for="foto">Foto (Opcional - Recomendado arquivos leves)</label>
-            <input type="file" id="foto" accept="image/*">
+            <label for="arquivo">Foto ou Documento PDF (Opcional - Máx 2MB recomendado)</label>
+            <input type="file" id="arquivo" accept="image/*,application/pdf">
         </div>
 
         <div class="form-group">
@@ -286,7 +327,7 @@
 </div>
 
 <script>
-    // URL DA SUA API DO SHEETDB JÁ INTEGRADA DIRETAMENTE
+    // URL DA SUA API DO SHEETDB INTEGRADA DIRETAMENTE
     const SHEETDB_URL = 'https://sheetdb.io/api/v1/0m6qwtdlygjmk';
 
     const form = document.getElementById('apoioForm');
@@ -323,9 +364,11 @@
                     exibirCarrossel();
                 } else {
                     loadingText.innerText = "Nenhum pedido ativo no momento.";
+                    navButtons.style.display = 'none';
                 }
             } else {
                 loadingText.innerText = "Nenhum pedido cadastrado.";
+                navButtons.style.display = 'none';
             }
         } catch (erro) {
             console.error("Erro ao conectar com o banco de dados:", erro);
@@ -338,41 +381,51 @@
         btnEnviar.disabled = true;
         btnEnviar.innerText = "Publicando...";
 
-        const fotoInput = document.getElementById('foto');
-        const file = fotoInput.files[0];
+        const arquivoInput = document.getElementById('arquivo');
+        const file = arquivoInput.files[0];
 
         if (file) {
             const reader = new FileReader();
-            reader.onloadend = function() {
-                const img = new Image();
-                img.src = reader.result;
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    const MAX_WIDTH = 400; 
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > MAX_WIDTH) {
-                        height *= MAX_WIDTH / width;
-                        width = MAX_WIDTH;
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    const foteOtimizada = canvas.toDataURL('image/jpeg', 0.6);
-                    enviarParaNuvem(foteOtimizada);
+            
+            // Tratamento especial se o arquivo for um PDF
+            if (file.type === "application/pdf") {
+                reader.onloadend = function() {
+                    enviarParaNuvem(reader.result);
                 }
+                reader.readAsDataURL(file);
+            } else {
+                // Se for uma imagem, comprime ligeiramente para poupar espaço na planilha
+                reader.onloadend = function() {
+                    const img = new Image();
+                    img.src = reader.result;
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const MAX_WIDTH = 400; 
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        const fotoOtimizada = canvas.toDataURL('image/jpeg', 0.6);
+                        enviarParaNuvem(fotoOtimizada);
+                    }
+                }
+                reader.readAsDataURL(file);
             }
-            reader.readAsDataURL(file);
         } else {
             enviarParaNuvem("");
         }
     });
 
     // ENVIA OS DADOS DO FORMULÁRIO PARA O GOOGLE SHEETS
-    async function enviarParaNuvem(fotoBase64) {
+    async function enviarParaNuvem(arquivoBase64) {
         const diasValidade = parseInt(document.getElementById('validade').value);
         const dataCriacao = new Date().getTime();
         const dataExpiracao = dataCriacao + (diasValidade * 24 * 60 * 60 * 1000);
@@ -380,8 +433,8 @@
         const mostrarPix = document.getElementById('mostrarPix').checked;
         const valorPix = document.getElementById('pix').value;
 
-        // Lógica de segurança: Só envia o PIX para a nuvem se a caixa estiver marcada
         const pixParaSalvar = mostrarPix ? valorPix : "";
+        const urlVideo = document.getElementById('video').value;
 
         const payload = {
             data: [{
@@ -389,9 +442,10 @@
                 nome: document.getElementById('nome').value,
                 email: document.getElementById('email').value,
                 comentarios: document.getElementById('comentarios').value,
-                foto: fotoBase64,
+                foto: arquivoBase64, // Salva tanto imagem quanto PDF codificado aqui
                 expiraEm: dataExpiracao,
-                pix: pixParaSalvar
+                pix: pixParaSalvar,
+                video: urlVideo
             }]
         };
 
@@ -422,7 +476,13 @@
 
     function exibirCarrossel() {
         loadingText.style.display = 'none';
-        navButtons.style.display = 'flex';
+        
+        if (pedidosGlobais.length > 1) {
+            navButtons.style.display = 'flex';
+        } else {
+            navButtons.style.display = 'none';
+        }
+
         form.style.display = 'none';
         carouselSection.style.display = 'block';
         carouselCards.innerHTML = '';
@@ -431,9 +491,36 @@
             const card = document.createElement('div');
             card.className = `carousel-item ${index === 0 ? 'active' : ''}`;
             
-            let fotoHtml = pedido.foto ? `<img src="${pedido.foto}" class="carousel-img" alt="Foto">` : '';
+            // Inteligência visual: Diferencia se o anexo é foto ou um arquivo PDF
+            let anexoHtml = '';
+            if (pedido.foto && pedido.foto.trim() !== "") {
+                if (pedido.foto.startsWith("data:application/pdf")) {
+                    anexoHtml = `<a href="${pedido.foto}" target="_blank" class="btn-documento">📄 Abrir Documento Anexo (PDF)</a>`;
+                } else {
+                    anexoHtml = `<img src="${pedido.foto}" class="carousel-img" alt="Foto">`;
+                }
+            }
             
-            // Verifica se há um PIX registrado na linha da planilha
+            // Processa o ID do vídeo do YouTube
+            let videoHtml = "";
+            if (pedido.video && pedido.video.trim() !== "") {
+                let videoId = "";
+                if (pedido.video.includes("v=")) {
+                    videoId = pedido.video.split("v=")[1].split("&")[0];
+                } else if (pedido.video.includes("youtu.be/")) {
+                    videoId = pedido.video.split("youtu.be/")[1].split("?")[0];
+                }
+                
+                if (videoId) {
+                    videoHtml = `
+                        <div class="video-container">
+                            <iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>
+                        </div>
+                    `;
+                }
+            }
+            
+            // Verifica se há um PIX registrado
             let blocoPixHtml = "";
             if (pedido.pix && pedido.pix.trim() !== "") {
                 blocoPixHtml = `
@@ -447,7 +534,8 @@
             }
 
             card.innerHTML = `
-                ${fotoHtml}
+                ${anexoHtml}
+                ${videoHtml}
                 <h4>${pedido.nome}</h4>
                 <p style="font-size: 14px; color: #555; margin-bottom: 15px;">${pedido.comentarios || 'Sem comentários públicos.'}</p>
                 
