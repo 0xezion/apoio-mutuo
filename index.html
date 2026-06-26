@@ -110,6 +110,12 @@
 
         button:hover {
             background-color: var(--cor-destaque);
+            color: white;
+        }
+
+        button:disabled {
+            background-color: #999;
+            cursor: not-allowed;
         }
 
         /* Estilos do Carrossel */
@@ -189,7 +195,7 @@
     <div class="header">
         <div class="logo">A</div>
         <h1>Rede de Apoio Mútuo</h1>
-        <p class="description">Espaço internacional autogerido. O contato fica aberto para comunicação e alinhamento de afinidade, resguardando o Pix para envio direto pós-contato.</p>
+        <p class="description">Espaço internacional autogerido conectado em nuvem. O contacto direto fica aberto, resguardando informações de transferência para o ambiente seguro pós-verificação.</p>
     </div>
 
     <hr>
@@ -203,12 +209,6 @@
         <div class="form-group">
             <label for="email">E-mail de Contato *</label>
             <input type="email" id="email" required placeholder="canal-de-apoio@provedor.com">
-            <span style="font-size: 12px; color: #777; display:block; margin-top:4px;">Este e-mail ficará visível publicamente para que apoiadores entrem em contato.</span>
-        </div>
-
-        <div class="form-group">
-            <label for="pix">Chave PIX para Depósito *</label>
-            <input type="text" id="pix" required placeholder="CPF, Celular ou Chave Aleatória">
         </div>
 
         <div class="form-group">
@@ -221,23 +221,24 @@
         </div>
 
         <div class="form-group">
-            <label for="foto">Foto (Opcional)</label>
+            <label for="foto">Foto (Opcional - Recomendado arquivos leves)</label>
             <input type="file" id="foto" accept="image/*">
         </div>
 
         <div class="form-group">
             <label for="comentarios">Contexto / Comentários Públicos (Opcional)</label>
-            <textarea id="comentarios" rows="3" placeholder="Explique brevemente a situação para que redes de outros países entendam a urgência..."></textarea>
+            <textarea id="comentarios" rows="3" placeholder="Explique brevemente a situação..."></textarea>
         </div>
 
-        <button type="submit">Adicionar e Ver Pedidos</button>
+        <button type="submit" id="btnEnviar">Publicar Pedido Globalmente</button>
     </form>
 
     <div id="carouselSection" class="carousel-container">
         <h3>Pedidos de Apoio Ativos</h3>
+        <div id="loadingText" style="color: #666; font-style: italic; margin: 20px 0;">Carregando pedidos da nuvem...</div>
         <div id="carouselCards"></div>
         
-        <div class="carousel-buttons">
+        <div class="carousel-buttons" id="navButtons" style="display: none;">
             <button class="btn-nav" id="btnPrev">◀ Anterior</button>
             <button class="btn-nav" id="btnNext">Próximo ▶</button>
         </div>
@@ -251,84 +252,142 @@
 </div>
 
 <script>
+    // INTEGRAÇÃO COM A PLANILHA DO GOOGLE - INSIRA SEU LINK DO SHEETDB AQUI
+    const SHEETDB_URL = 'SUA_API_DO_SHEETDB_AQUI';
+
     const form = document.getElementById('apoioForm');
     const carouselSection = document.getElementById('carouselSection');
     const carouselCards = document.getElementById('carouselCards');
     const btnNovoCadastro = document.getElementById('btnNovoCadastro');
+    const btnEnviar = document.getElementById('btnEnviar');
+    const loadingText = document.getElementById('loadingText');
+    const navButtons = document.getElementById('navButtons');
     
     let currentIndex = 0;
+    let pedidosGlobais = [];
 
     window.onload = function() {
-        limparPedidosExpirados();
-        if (getPedidos().length > 0) {
-            exibirCarrossel();
-        }
+        carregarPedidosDaNuvem();
     };
+
+    // PUXA OS DADOS DIRETAMENTE DO GOOGLE SHEETS
+    async function carregarPedidosDaNuvem() {
+        if (SHEETDB_URL === 'https://sheetdb.io/api/v1/0m6qwtdlygjmk') {
+            console.log("Configuração pendente da API do SheetDB.");
+            return;
+        }
+
+        try {
+            const resposta = await fetch(SHEETDB_URL);
+            const dados = await response.json();
+            
+            if (Array.isArray(dados) && dados.length > 0) {
+                const agora = new Date().getTime();
+                
+                // Filtra removendo os expirados antes de renderizar na tela
+                pedidosGlobais = dados.filter(pedido => {
+                    const expira = parseInt(pedido.expiraEm);
+                    return !expira || expira > agora;
+                });
+
+                if (pedidosGlobais.length > 0) {
+                    exibirCarrossel();
+                }
+            }
+        } catch (erro) {
+            console.error("Erro ao conectar com o banco de dados:", erro);
+        }
+    }
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
+        btnEnviar.disabled = true;
+        btnEnviar.innerText = "Publicando...";
+
         const fotoInput = document.getElementById('foto');
         const file = fotoInput.files[0];
 
         if (file) {
+            // Se houver imagem, comprime ligeiramente reduzindo escala para caber na célula da planilha
             const reader = new FileReader();
             reader.onloadend = function() {
-                salvarDados(reader.result);
+                const img = new Image();
+                img.src = reader.result;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const MAX_WIDTH = 400; // Resolução otimizada para web/planilha
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    const foteOtimizada = canvas.toDataURL('image/jpeg', 0.6); // Compressão equilibrada
+                    enviarParaNuvem(foteOtimizada);
+                }
             }
             reader.readAsDataURL(file);
         } else {
-            salvarDados(null);
+            enviarParaNuvem("");
         }
     });
 
-    function salvarDados(fotoBase64) {
+    // ENVIA OS DADOS DO FORMULÁRIO PARA O GOOGLE SHEETS
+    async function enviarParaNuvem(fotoBase64) {
         const diasValidade = parseInt(document.getElementById('validade').value);
         const dataCriacao = new Date().getTime();
         const dataExpiracao = dataCriacao + (diasValidade * 24 * 60 * 60 * 1000);
 
-        const novoPedido = {
-            id: dataCriacao,
-            nome: document.getElementById('nome').value,
-            email: document.getElementById('email').value,
-            pix: document.getElementById('pix').value,
-            comentarios: document.getElementById('comentarios').value,
-            foto: fotoBase64,
-            expiraEm: dataExpiracao
+        const payload = {
+            data: [{
+                id: dataCriacao,
+                nome: document.getElementById('nome').value,
+                email: document.getElementById('email').value,
+                comentarios: document.getElementById('comentarios').value,
+                foto: fotoBase64,
+                expiraEm: dataExpiracao
+            }]
         };
 
-        let pedidos = getPedidos();
-        pedidos.push(novoPedido);
-        localStorage.setItem('pedidosApoio', JSON.stringify(pedidos));
+        try {
+            await fetch(SHEETDB_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
 
-        form.reset();
-        exibirCarrossel();
-    }
-
-    function getPedidos() {
-        const dados = localStorage.getItem('pedidosApoio');
-        return dados ? JSON.parse(dados) : [];
-    }
-
-    function limparPedidosExpirados() {
-        const pedidos = getPedidos();
-        const agora = new Date().getTime();
-        const pedidosAtivos = pedidos.filter(pedido => !pedido.expiraEm || pedido.expiraEm > agora);
-        localStorage.setItem('pedidosApoio', JSON.stringify(pedidosAtivos));
+            form.reset();
+            btnEnviar.disabled = false;
+            btnEnviar.innerText = "Publicar Pedido Globalmente";
+            
+            // Recarrega os dados imediatamente após salvar para exibir no carrossel
+            form.style.display = 'none';
+            carouselSection.style.display = 'block';
+            loadingText.style.display = 'block';
+            carouselCards.innerHTML = '';
+            
+            await carregarPedidosDaNuvem();
+        } catch (erro) {
+            alert("Erro ao salvar dados na nuvem. Verifique a conexão.");
+            btnEnviar.disabled = false;
+            btnEnviar.innerText = "Publicar Pedido Globalmente";
+        }
     }
 
     function exibirCarrossel() {
-        const pedidos = getPedidos();
-        if (pedidos.length === 0) {
-            carouselSection.style.display = 'none';
-            form.style.display = 'block';
-            return;
-        }
-
+        loadingText.style.display = 'none';
+        navButtons.style.display = 'flex';
         form.style.display = 'none';
         carouselSection.style.display = 'block';
         carouselCards.innerHTML = '';
 
-        pedidos.forEach((pedido, index) => {
+        pedidosGlobais.forEach((pedido, index) => {
             const card = document.createElement('div');
             card.className = `carousel-item ${index === 0 ? 'active' : ''}`;
             
