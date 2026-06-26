@@ -84,7 +84,6 @@
 
         input[type="text"],
         input[type="email"],
-        input[type="password"],
         select,
         textarea {
             width: 100%;
@@ -148,19 +147,14 @@
             font-size: 14px;
         }
 
-        .input-chave {
-            margin: 10px 0;
-            padding: 8px !important;
-            text-align: center;
+        .link-email {
+            color: var(--cor-destaque);
+            font-weight: bold;
+            text-decoration: none;
         }
 
-        .btn-revelar {
-            background-color: #444;
-            padding: 8px 12px;
-            font-size: 13px;
-            width: auto;
-            display: inline-block;
-            margin-top: 5px;
+        .link-email:hover {
+            text-decoration: underline;
         }
 
         .carousel-buttons {
@@ -195,7 +189,7 @@
     <div class="header">
         <div class="logo">A</div>
         <h1>Rede de Apoio Mútuo</h1>
-        <p class="description">Rede internacional e autogerida. Informações confidenciais são criptografadas localmente por uma chave de afinidade definida por quem criou o pedido.</p>
+        <p class="description">Espaço internacional autogerido. O contato fica aberto para comunicação e alinhamento de afinidade, resguardando o Pix para envio direto pós-contato.</p>
     </div>
 
     <hr>
@@ -203,23 +197,18 @@
     <form id="apoioForm">
         <div class="form-group">
             <label for="nome">Nome do Companheiro(a) *</label>
-            <input type="text" id="nome" required placeholder="Nome ou codinome">
+            <input type="text" id="nome" required placeholder="Nome ou codinome de quem precisa">
         </div>
 
         <div class="form-group">
             <label for="email">E-mail de Contato *</label>
-            <input type="email" id="email" required placeholder="seu-email@provedor.com">
+            <input type="email" id="email" required placeholder="canal-de-apoio@provedor.com">
+            <span style="font-size: 12px; color: #777; display:block; margin-top:4px;">Este e-mail ficará visível publicamente para que apoiadores entrem em contato.</span>
         </div>
 
         <div class="form-group">
             <label for="pix">Chave PIX para Depósito *</label>
             <input type="text" id="pix" required placeholder="CPF, Celular ou Chave Aleatória">
-        </div>
-
-        <div class="form-group">
-            <label for="chaveAfinidade">Defina a Chave de Afinidade (Senha do Pedido) *</label>
-            <input type="password" id="chaveAfinidade" required placeholder="Ex: kombasunidos123">
-            <span style="font-size: 12px; color: #777; display:block; margin-top:4px;">Repasse essa chave apenas para canais confiáveis de apoio mútuo. Quem quiser ajudar precisará dela.</span>
         </div>
 
         <div class="form-group">
@@ -238,7 +227,7 @@
 
         <div class="form-group">
             <label for="comentarios">Contexto / Comentários Públicos (Opcional)</label>
-            <textarea id="comentarios" rows="3" placeholder="Explique a situação que qualquer pessoa do mundo poderá ler..."></textarea>
+            <textarea id="comentarios" rows="3" placeholder="Explique brevemente a situação para que redes de outros países entendam a urgência..."></textarea>
         </div>
 
         <button type="submit">Adicionar e Ver Pedidos</button>
@@ -269,32 +258,6 @@
     
     let currentIndex = 0;
 
-    // Função simples de cifragem local baseada em senha (XOR + Base64) para não depender de servidores externos
-    function criptografar(texto, chave) {
-        let resultado = "";
-        for (let i = 0; i < texto.length; i++) {
-            let caractere = texto.charCodeAt(i);
-            let caractereChave = chave.charCodeAt(i % chave.length);
-            resultado += String.fromCharCode(caractere ^ caractereChave);
-        }
-        return btoa(unescape(encodeURIComponent(resultado)));
-    }
-
-    function descriptografar(textoCifrado, chave) {
-        try {
-            let dados = decodeURIComponent(escape(atob(textoCifrado)));
-            let resultado = "";
-            for (let i = 0; i < dados.length; i++) {
-                let caractere = dados.charCodeAt(i);
-                let caractereChave = chave.charCodeAt(i % chave.length);
-                resultado += String.fromCharCode(caractere ^ caractereChave);
-            }
-            return resultado;
-        } catch (e) {
-            return null;
-        }
-    }
-
     window.onload = function() {
         limparPedidosExpirados();
         if (getPedidos().length > 0) {
@@ -319,24 +282,15 @@
     });
 
     function salvarDados(fotoBase64) {
-        const chave = document.getElementById('chaveAfinidade').value;
         const diasValidade = parseInt(document.getElementById('validade').value);
         const dataCriacao = new Date().getTime();
         const dataExpiracao = dataCriacao + (diasValidade * 24 * 60 * 60 * 1000);
 
-        // O e-mail e o pix são guardados totalmente criptografados na memória
-        const emailCifrado = criptografar(document.getElementById('email').value, chave);
-        const pixCifrado = criptografar(document.getElementById('pix').value, chave);
-        
-        // Criamos uma assinatura rápida para validar se a senha digitada depois está certa
-        const validacaoChave = criptografar("VALIDO", chave);
-
         const novoPedido = {
             id: dataCriacao,
             nome: document.getElementById('nome').value,
-            email: emailCifrado,
-            pix: pixCifrado,
-            validacao: validacaoChave,
+            email: document.getElementById('email').value,
+            pix: document.getElementById('pix').value,
             comentarios: document.getElementById('comentarios').value,
             foto: fotoBase64,
             expiraEm: dataExpiracao
@@ -386,16 +340,10 @@
                 <p style="font-size: 14px; color: #555; margin-bottom: 15px;">${pedido.comentarios || 'Sem comentários públicos.'}</p>
                 
                 <div class="info-privada">
-                    <div class="dados-ocultos" id="oculto-${index}">
-                        <p style="color: #444; font-weight: 500; margin: 5px 0;">🔒 Dados Restritos por Afinidade</p>
-                        <p style="font-size: 12px; color: #777; margin: 0 0 10px 0;">Entre em contato com o kompa ou coletivo para obter a chave de acesso.</p>
-                        <input type="password" id="input-chave-${index}" class="input-chave" placeholder="Digite a chave secreta">
-                        <button class="btn-revelar" onclick="tentarRevelar(${index}, '${pedido.pix}', '${pedido.email}', '${pedido.validacao}')">Visualizar Dados</button>
-                    </div>
-                    <div class="dados-visiveis" id="visivel-${index}" style="display: none; text-align: left; background: #fff; padding: 10px; border-radius: 4px; border: 1px dashed var(--cor-destaque);">
-                        <p style="margin: 5px 0;"><strong>PIX:</strong> <span id="txt-pix-${index}"></span></p>
-                        <p style="margin: 5px 0; font-size: 13px; color: #333;"><strong>Contato:</strong> <span id="txt-email-${index}"></span></p>
-                    </div>
+                    <p style="margin: 5px 0 12px 0;"><strong>Contacto Directo:</strong> <a href="mailto:${pedido.email}" class="link-email">${pedido.email}</a></p>
+                    <hr style="border-top: 1px dashed #ccc; margin: 10px 0;">
+                    <p style="color: #444; font-weight: 500; margin: 5px 0;">🔒 Chave PIX Resguardada</p>
+                    <p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">Por questões de segurança, envie um e-mail para o contacto acima para verificar afinidade e solicitar os dados financeiros de apoio.</p>
                 </div>
             `;
             carouselCards.appendChild(card);
@@ -403,24 +351,6 @@
 
         currentIndex = 0;
         atualizarCarrossel();
-    }
-
-    function tentarRevelar(index, pixCifrado, emailCifrado, validacaoCifrada) {
-        const chaveDigitada = document.getElementById(`input-chave-${index}`).value;
-        const teste = descriptografar(validacaoCifrada, chaveDigitada);
-
-        if (teste === "VALIDO") {
-            const pixOriginal = descriptografar(pixCifrado, chaveDigitada);
-            const emailOriginal = descriptografar(emailCifrado, chaveDigitada);
-
-            document.getElementById(`txt-pix-${index}`).innerText = pixOriginal;
-            document.getElementById(`txt-email-${index}`).innerText = emailOriginal;
-
-            document.getElementById(`oculto-${index}`).style.display = 'none';
-            document.getElementById(`visivel-${index}`).style.display = 'block';
-        } else {
-            alert("Chave incorreta. Entre em contato com as redes de apoio do companheiro.");
-        }
     }
 
     function atualizarCarrossel() {
@@ -431,15 +361,6 @@
             item.classList.remove('active');
             if (index === currentIndex) {
                 item.classList.add('active');
-                
-                const oculto = document.getElementById(`oculto-${index}`);
-                const visivel = document.getElementById(`visivel-${index}`);
-                if(oculto && visivel) {
-                    oculto.style.display = 'block';
-                    visivel.style.display = 'none';
-                    const input = document.getElementById(`input-chave-${index}`);
-                    if(input) input.value = '';
-                }
             }
         });
     }
