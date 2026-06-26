@@ -286,8 +286,8 @@
 </div>
 
 <script>
-    // INTEGRAÇÃO COM A PLANILHA DO GOOGLE - INSIRA SEU LINK DO SHEETDB AQUI
-    const SHEETDB_URL = 'SUA_API_DO_SHEETDB_AQUI';
+    // URL DA SUA API DO SHEETDB JÁ INTEGRADA DIRETAMENTE
+    const SHEETDB_URL = 'https://sheetdb.io/api/v1/0m6qwtdlygjmk';
 
     const form = document.getElementById('apoioForm');
     const carouselSection = document.getElementById('carouselSection');
@@ -304,16 +304,11 @@
         carregarPedidosDaNuvem();
     };
 
-    // CORRIGIDO: PUXA OS DADOS DO GOOGLE SHEETS SEM TRAVAR
+    // PUXA OS DADOS DO GOOGLE SHEETS
     async function carregarPedidosDaNuvem() {
-        if (SHEETDB_URL === 'SUA_API_DO_SHEETDB_AQUI') {
-            console.log("Configuração pendente da API do SheetDB.");
-            return;
-        }
-
         try {
             const resposta = await fetch(SHEETDB_URL);
-            const dados = await resposta.json(); // BUG CORRIGIDO AQUI (resposta em vez de response)
+            const dados = await resposta.json();
             
             if (Array.isArray(dados) && dados.length > 0) {
                 const agora = new Date().getTime();
@@ -376,7 +371,7 @@
         }
     });
 
-    // ENVIA OS DADOS PARADOS DO FORMULÁRIO PARA O GOOGLE SHEETS
+    // ENVIA OS DADOS DO FORMULÁRIO PARA O GOOGLE SHEETS
     async function enviarParaNuvem(fotoBase64) {
         const diasValidade = parseInt(document.getElementById('validade').value);
         const dataCriacao = new Date().getTime();
@@ -442,7 +437,7 @@
             let blocoPixHtml = "";
             if (pedido.pix && pedido.pix.trim() !== "") {
                 blocoPixHtml = `
-                    <p style="margin: 5px 0; color: #222;"><strong>PIX Público:</strong> <span style="background: #fff; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${pedido.pix}</span></p>
+                    <p style="margin: 5px 0; color: #222;"><strong>PIX Público:</strong> <span style="background: #fff; padding: 2px 6px; border-radius: 4px; font-family: monospace; display: inline-block; border: 1px solid #ccc;">${pedido.pix}</span></p>
                 `;
             } else {
                 blocoPixHtml = `
