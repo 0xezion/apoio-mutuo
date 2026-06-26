@@ -327,7 +327,7 @@
 </div>
 
 <script>
-    // URL DA SUA API DO SHEETDB INTEGRADA DIRETAMENTE
+    // URL DA SUA API DO SHEETDB JÁ INTEGRADA
     const SHEETDB_URL = 'https://sheetdb.io/api/v1/0m6qwtdlygjmk';
 
     const form = document.getElementById('apoioForm');
@@ -387,14 +387,12 @@
         if (file) {
             const reader = new FileReader();
             
-            // Tratamento especial se o arquivo for um PDF
             if (file.type === "application/pdf") {
                 reader.onloadend = function() {
                     enviarParaNuvem(reader.result);
                 }
                 reader.readAsDataURL(file);
             } else {
-                // Se for uma imagem, comprime ligeiramente para poupar espaço na planilha
                 reader.onloadend = function() {
                     const img = new Image();
                     img.src = reader.result;
@@ -442,7 +440,7 @@
                 nome: document.getElementById('nome').value,
                 email: document.getElementById('email').value,
                 comentarios: document.getElementById('comentarios').value,
-                foto: arquivoBase64, // Salva tanto imagem quanto PDF codificado aqui
+                foto: arquivoBase64,
                 expiraEm: dataExpiracao,
                 pix: pixParaSalvar,
                 video: urlVideo
@@ -463,7 +461,7 @@
             form.style.display = 'none';
             carouselSection.style.display = 'block';
             loadingText.style.display = 'block';
-            loadingText.innerText = "Carregando pedidos da nuvem...";
+            loadingText.innerText = "Carregando pedidos da nuvem... ";
             carouselCards.innerHTML = '';
             
             await carregarPedidosDaNuvem();
@@ -472,6 +470,20 @@
             btnEnviar.disabled = false;
             btnEnviar.innerText = "Publicar Pedido Globalmente";
         }
+    }
+
+    // FUNÇÃO QUE EXTRAI O ID DO VÍDEO COM LÓGICA ULTRA AVANÇADA (A PROVA DE FALHAS)
+    function extrairIDDoYoutube(url) {
+        if (!url || typeof url !== 'string') return null;
+        
+        // Remove espaços em branco nas pontas
+        url = url.trim();
+
+        // Expressão regular (Regex) para capturar IDs em qualquer formato do YouTube
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+
+        return (match && match[2].length === 11) ? match[2] : null;
     }
 
     function exibirCarrossel() {
@@ -491,7 +503,7 @@
             const card = document.createElement('div');
             card.className = `carousel-item ${index === 0 ? 'active' : ''}`;
             
-            // Inteligência visual: Diferencia se o anexo é foto ou um arquivo PDF
+            // Diferencia se o anexo é foto ou um arquivo PDF
             let anexoHtml = '';
             if (pedido.foto && pedido.foto.trim() !== "") {
                 if (pedido.foto.startsWith("data:application/pdf")) {
@@ -501,23 +513,16 @@
                 }
             }
             
-            // Processa o ID do vídeo do YouTube
+            // Nova extração de vídeo ultra robusta
             let videoHtml = "";
-            if (pedido.video && pedido.video.trim() !== "") {
-                let videoId = "";
-                if (pedido.video.includes("v=")) {
-                    videoId = pedido.video.split("v=")[1].split("&")[0];
-                } else if (pedido.video.includes("youtu.be/")) {
-                    videoId = pedido.video.split("youtu.be/")[1].split("?")[0];
-                }
-                
-                if (videoId) {
-                    videoHtml = `
-                        <div class="video-container">
-                            <iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>
-                        </div>
-                    `;
-                }
+            const videoId = extrairIDDoYoutube(pedido.video);
+            
+            if (videoId) {
+                videoHtml = `
+                    <div class="video-container">
+                        <iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>
+                    </div>
+                `;
             }
             
             // Verifica se há um PIX registrado
