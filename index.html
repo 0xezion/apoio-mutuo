@@ -138,6 +138,24 @@
             object-fit: cover;
         }
 
+        /* Área de contato resguardada */
+        .info-privada {
+            background: #e6e6e6;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+
+        .btn-revelar {
+            background-color: #444;
+            padding: 8px 12px;
+            font-size: 13px;
+            width: auto;
+            display: inline-block;
+            margin-top: 5px;
+        }
+
         .carousel-buttons {
             display: flex;
             justify-content: space-between;
@@ -170,7 +188,7 @@
     <div class="header">
         <div class="logo">A</div>
         <h1>Rede de Apoio Mútuo</h1>
-        <p class="description">Espaço autogerido para suporte financeiro a companheiros anarquistas. Seus dados não são salvos em nenhum servidor externo.</p>
+        <p class="description">Espaço autogerido para suporte financeiro a companheiros anarquistas. Seus dados não são salvos em nenhum servidor externo e os contatos ficam resguardados.</p>
     </div>
 
     <hr>
@@ -229,7 +247,6 @@
     
     let currentIndex = 0;
 
-    // Carregar dados existentes ao iniciar a página
     window.onload = function() {
         if (getPedidos().length > 0) {
             exibirCarrossel();
@@ -238,7 +255,6 @@
 
     form.addEventListener('submit', function(e) {
         e.preventDefault();
-
         const fotoInput = document.getElementById('foto');
         const file = fotoInput.files[0];
 
@@ -247,7 +263,7 @@
             reader.onloadend = function() {
                 salvarDados(reader.result);
             }
-            reader.readAsDataURL(file); // Converte a imagem em texto seguro (Base64)
+            reader.readAsDataURL(file);
         } else {
             salvarDados(null);
         }
@@ -292,15 +308,30 @@
             card.innerHTML = `
                 ${fotoHtml}
                 <h4>${pedido.nome}</h4>
-                <p><strong>PIX:</strong> ${pedido.pix}</p>
-                <p style="font-size: 14px; color: #555;">${pedido.comentarios || 'Sem comentários adicionais.'}</p>
-                <p style="font-size: 11px; color: #999;">Contato: ${pedido.email}</p>
+                <p style="font-size: 14px; color: #555; margin-bottom: 15px;">${pedido.comentarios || 'Sem comentários adicionais.'}</p>
+                
+                <div class="info-privada">
+                    <div class="dados-ocultos" id="oculto-${index}">
+                        <p style="color: #777; margin: 5px 0;">🔒 Dados de contato e PIX ocultos por segurança.</p>
+                        <button class="btn-revelar" onclick="revelarDados(${index})">Quero Ajudar (Revelar Contato)</button>
+                    </div>
+                    <div class="dados-visiveis" id="visivel-${index}" style="display: none;">
+                        <p style="margin: 5px 0;"><strong>PIX:</strong> ${pedido.pix}</p>
+                        <p style="margin: 5px 0; font-size: 12px; color: #555;"><strong>Contato:</strong> ${pedido.email}</p>
+                    </div>
+                </div>
             `;
             carouselCards.appendChild(card);
         });
 
         currentIndex = 0;
         atualizarCarrossel();
+    }
+
+    // Função que faz a mágica de revelar os dados específicos do card
+    function revelarDados(index) {
+        document.getElementById(`oculto-${index}`).style.display = 'none';
+        document.getElementById(`visivel-${index}`).style.display = 'block';
     }
 
     function atualizarCarrossel() {
@@ -311,6 +342,14 @@
             item.classList.remove('active');
             if (index === currentIndex) {
                 item.classList.add('active');
+                
+                // Reseta a visualização oculta quando o usuário muda de slide (opcional, para segurança)
+                const oculto = document.getElementById(`oculto-${index}`);
+                const visivel = document.getElementById(`visivel-${index}`);
+                if(oculto && visivel) {
+                    oculto.style.display = 'block';
+                    visivel.style.display = 'none';
+                }
             }
         });
     }
