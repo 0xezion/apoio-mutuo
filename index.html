@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apoio Mútuo - Solidariedade Anarquista</title>
+    <style>
+        :root {
+            --cor-fundo: #f9f9f9;
+            --cor-card: #ffffff;
+            --cor-texto: #222222;
+            --cor-destaque: #cc0000;
+            --cor-borda: #dddddd;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--cor-fundo);
+            color: var(--cor-texto);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: var(--cor-card);
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            border: 3px solid var(--cor-texto);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            margin: 0 auto 20px auto;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin: 0 0 10px 0;
+            letter-spacing: -0.5px;
+        }
+
+        p.description {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        hr {
+            border: 0;
+            border-top: 1px solid var(--cor-borda);
+            margin: 25px 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--cor-borda);
+            border-radius: 6px;
+            font-size: 15px;
+            box-sizing: border-box;
+            background-color: #fafafa;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--cor-texto);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: var(--cor-destaque);
+        }
+
+        /* Estilos do Carrossel */
+        .carousel-container {
+            display: none;
+            position: relative;
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 6px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .carousel-item {
+            display: none;
+        }
+
+        .carousel-item.active {
+            display: block;
+        }
+
+        .carousel-img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            object-fit: cover;
+        }
+
+        .carousel-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+
+        .btn-nav {
+            width: auto;
+            padding: 8px 15px;
+            background: #444;
+            font-size: 14px;
+        }
+
+        .btn-voltar {
+            background: #777;
+            margin-top: 20px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 12px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <div class="logo">A</div>
+        <h1>Rede de Apoio Mútuo</h1>
+        <p class="description">Espaço autogerido para suporte financeiro a companheiros anarquistas. Seus dados não são salvos em nenhum servidor externo.</p>
+    </div>
+
+    <hr>
+
+    <form id="apoioForm">
+        <div class="form-group">
+            <label for="nome">Nome do Companheiro(a) *</label>
+            <input type="text" id="nome" required placeholder="Nome ou codinome">
+        </div>
+
+        <div class="form-group">
+            <label for="email">E-mail de Contato *</label>
+            <input type="email" id="email" required placeholder="seu-email@provedor.com">
+        </div>
+
+        <div class="form-group">
+            <label for="pix">Chave PIX para Depósito *</label>
+            <input type="text" id="pix" required placeholder="CPF, Celular ou Chave Aleatória">
+        </div>
+
+        <div class="form-group">
+            <label for="foto">Foto (Opcional)</label>
+            <input type="file" id="foto" accept="image/*">
+        </div>
+
+        <div class="form-group">
+            <label for="comentarios">Contexto / Comentários (Opcional)</label>
+            <textarea id="comentarios" rows="3" placeholder="Breve histórico..."></textarea>
+        </div>
+
+        <button type="submit">Adicionar e Ver Pedidos</button>
+    </form>
+
+    <div id="carouselSection" class="carousel-container">
+        <h3>Pedidos de Apoio Ativos</h3>
+        <div id="carouselCards"></div>
+        
+        <div class="carousel-buttons">
+            <button class="btn-nav" id="btnPrev">◀ Anterior</button>
+            <button class="btn-nav" id="btnNext">Próximo ▶</button>
+        </div>
+
+        <button class="btn-voltar" id="btnNovoCadastro">Cadastrar Outro Pedido</button>
+    </div>
+
+    <footer>
+        Apoio Mútuo não é caridade, é solidariedade.
+    </footer>
+</div>
+
+<script>
+    const form = document.getElementById('apoioForm');
+    const carouselSection = document.getElementById('carouselSection');
+    const carouselCards = document.getElementById('carouselCards');
+    const btnNovoCadastro = document.getElementById('btnNovoCadastro');
+    
+    let currentIndex = 0;
+
+    // Carregar dados existentes ao iniciar a página
+    window.onload = function() {
+        if (getPedidos().length > 0) {
+            exibirCarrossel();
+        }
+    };
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const fotoInput = document.getElementById('foto');
+        const file = fotoInput.files[0];
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                salvarDados(reader.result);
+            }
+            reader.readAsDataURL(file); // Converte a imagem em texto seguro (Base64)
+        } else {
+            salvarDados(null);
+        }
+    });
+
+    function salvarDados(fotoBase64) {
+        const novoPedido = {
+            nome: document.getElementById('nome').value,
+            email: document.getElementById('email').value,
+            pix: document.getElementById('pix').value,
+            comentarios: document.getElementById('comentarios').value,
+            foto: fotoBase64
+        };
+
+        let pedidos = getPedidos();
+        pedidos.push(novoPedido);
+        localStorage.setItem('pedidosApoio', JSON.stringify(pedidos));
+
+        form.reset();
+        exibirCarrossel();
+    }
+
+    function getPedidos() {
+        const dados = localStorage.getItem('pedidosApoio');
+        return dados ? JSON.parse(dados) : [];
+    }
+
+    function exibirCarrossel() {
+        const pedidos = getPedidos();
+        if (pedidos.length === 0) return;
+
+        form.style.display = 'none';
+        carouselSection.style.display = 'block';
+        carouselCards.innerHTML = '';
+
+        pedidos.forEach((pedido, index) => {
+            const card = document.createElement('div');
+            card.className = `carousel-item ${index === 0 ? 'active' : ''}`;
+            
+            let fotoHtml = pedido.foto ? `<img src="${pedido.foto}" class="carousel-img" alt="Foto">` : '';
+
+            card.innerHTML = `
+                ${fotoHtml}
+                <h4>${pedido.nome}</h4>
+                <p><strong>PIX:</strong> ${pedido.pix}</p>
+                <p style="font-size: 14px; color: #555;">${pedido.comentarios || 'Sem comentários adicionais.'}</p>
+                <p style="font-size: 11px; color: #999;">Contato: ${pedido.email}</p>
+            `;
+            carouselCards.appendChild(card);
+        });
+
+        currentIndex = 0;
+        atualizarCarrossel();
+    }
+
+    function atualizarCarrossel() {
+        const items = document.querySelectorAll('.carousel-item');
+        if (items.length === 0) return;
+        
+        items.forEach((item, index) => {
+            item.classList.remove('active');
+            if (index === currentIndex) {
+                item.classList.add('active');
+            }
+        });
+    }
+
+    document.getElementById('btnNext').addEventListener('click', () => {
+        const items = document.querySelectorAll('.carousel-item');
+        currentIndex = (currentIndex + 1) % items.length;
+        atualizarCarrossel();
+    });
+
+    document.getElementById('btnPrev').addEventListener('click', () => {
+        const items = document.querySelectorAll('.carousel-item');
+        currentIndex = (currentIndex - 1 + items.length) % items.length;
+        atualizarCarrossel();
+    });
+
+    btnNovoCadastro.addEventListener('click', () => {
+        carouselSection.style.display = 'none';
+        form.style.display = 'block';
+    });
+</script>
+
+</body>
+</html>
