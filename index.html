@@ -75,11 +75,35 @@
             margin-bottom: 20px;
         }
 
+        .form-group-checkbox {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: flex-start;
+            background: #f0f0f0;
+            padding: 12px;
+            border-radius: 6px;
+        }
+
+        .form-group-checkbox input {
+            margin-top: 3px;
+            margin-right: 10px;
+            transform: scale(1.2);
+            cursor: pointer;
+        }
+
         label {
             display: block;
             font-size: 14px;
             font-weight: 600;
             margin-bottom: 8px;
+        }
+
+        .form-group-checkbox label {
+            margin-bottom: 0;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 13px;
+            line-height: 1.4;
         }
 
         input[type="text"],
@@ -212,6 +236,16 @@
         </div>
 
         <div class="form-group">
+            <label for="pix">Chave PIX para Depósito</label>
+            <input type="text" id="pix" placeholder="CPF, Celular ou Chave Aleatória (Opcional)">
+        </div>
+
+        <div class="form-group-checkbox">
+            <input type="checkbox" id="mostrarPix">
+            <label for="mostrarPix"><strong>Tornar PIX público no carrossel.</strong> (Se deixar desmarcado, o apoiador terá que te pedir a chave por e-mail por segurança).</label>
+        </div>
+
+        <div class="form-group">
             <label for="validade">Tempo de Exposição do Pedido *</label>
             <select id="validade" required>
                 <option value="7">1 Semana</option>
@@ -270,21 +304,21 @@
         carregarPedidosDaNuvem();
     };
 
-    // PUXA OS DADOS DIRETAMENTE DO GOOGLE SHEETS
+    // CORRIGIDO: PUXA OS DADOS DO GOOGLE SHEETS SEM TRAVAR
     async function carregarPedidosDaNuvem() {
-        if (SHEETDB_URL === 'https://sheetdb.io/api/v1/0m6qwtdlygjmk') {
+        if (SHEETDB_URL === 'SUA_API_DO_SHEETDB_AQUI') {
             console.log("Configuração pendente da API do SheetDB.");
             return;
         }
 
         try {
             const resposta = await fetch(SHEETDB_URL);
-            const dados = await response.json();
+            const dados = await resposta.json(); // BUG CORRIGIDO AQUI (resposta em vez de response)
             
             if (Array.isArray(dados) && dados.length > 0) {
                 const agora = new Date().getTime();
                 
-                // Filtra removendo os expirados antes de renderizar na tela
+                // Filtra removendo os expirados antes de renderizar
                 pedidosGlobais = dados.filter(pedido => {
                     const expira = parseInt(pedido.expiraEm);
                     return !expira || expira > agora;
@@ -292,10 +326,15 @@
 
                 if (pedidosGlobais.length > 0) {
                     exibirCarrossel();
+                } else {
+                    loadingText.innerText = "Nenhum pedido ativo no momento.";
                 }
+            } else {
+                loadingText.innerText = "Nenhum pedido cadastrado.";
             }
         } catch (erro) {
             console.error("Erro ao conectar com o banco de dados:", erro);
+            loadingText.innerText = "Erro ao carregar dados da nuvem.";
         }
     }
 
@@ -308,7 +347,6 @@
         const file = fotoInput.files[0];
 
         if (file) {
-            // Se houver imagem, comprime ligeiramente reduzindo escala para caber na célula da planilha
             const reader = new FileReader();
             reader.onloadend = function() {
                 const img = new Image();
@@ -316,7 +354,7 @@
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    const MAX_WIDTH = 400; // Resolução otimizada para web/planilha
+                    const MAX_WIDTH = 400; 
                     let width = img.width;
                     let height = img.height;
 
@@ -328,7 +366,7 @@
                     canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    const foteOtimizada = canvas.toDataURL('image/jpeg', 0.6); // Compressão equilibrada
+                    const foteOtimizada = canvas.toDataURL('image/jpeg', 0.6);
                     enviarParaNuvem(foteOtimizada);
                 }
             }
@@ -338,11 +376,17 @@
         }
     });
 
-    // ENVIA OS DADOS DO FORMULÁRIO PARA O GOOGLE SHEETS
+    // ENVIA OS DADOS PARADOS DO FORMULÁRIO PARA O GOOGLE SHEETS
     async function enviarParaNuvem(fotoBase64) {
         const diasValidade = parseInt(document.getElementById('validade').value);
         const dataCriacao = new Date().getTime();
         const dataExpiracao = dataCriacao + (diasValidade * 24 * 60 * 60 * 1000);
+        
+        const mostrarPix = document.getElementById('mostrarPix').checked;
+        const valorPix = document.getElementById('pix').value;
+
+        // Lógica de segurança: Só envia o PIX para a nuvem se a caixa estiver marcada
+        const pixParaSalvar = mostrarPix ? valorPix : "";
 
         const payload = {
             data: [{
@@ -351,7 +395,8 @@
                 email: document.getElementById('email').value,
                 comentarios: document.getElementById('comentarios').value,
                 foto: fotoBase64,
-                expiraEm: dataExpiracao
+                expiraEm: dataExpiracao,
+                pix: pixParaSalvar
             }]
         };
 
@@ -366,10 +411,10 @@
             btnEnviar.disabled = false;
             btnEnviar.innerText = "Publicar Pedido Globalmente";
             
-            // Recarrega os dados imediatamente após salvar para exibir no carrossel
             form.style.display = 'none';
             carouselSection.style.display = 'block';
             loadingText.style.display = 'block';
+            loadingText.innerText = "Carregando pedidos da nuvem...";
             carouselCards.innerHTML = '';
             
             await carregarPedidosDaNuvem();
@@ -392,6 +437,19 @@
             card.className = `carousel-item ${index === 0 ? 'active' : ''}`;
             
             let fotoHtml = pedido.foto ? `<img src="${pedido.foto}" class="carousel-img" alt="Foto">` : '';
+            
+            // Verifica se há um PIX registrado na linha da planilha
+            let blocoPixHtml = "";
+            if (pedido.pix && pedido.pix.trim() !== "") {
+                blocoPixHtml = `
+                    <p style="margin: 5px 0; color: #222;"><strong>PIX Público:</strong> <span style="background: #fff; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${pedido.pix}</span></p>
+                `;
+            } else {
+                blocoPixHtml = `
+                    <p style="color: #444; font-weight: 500; margin: 5px 0;">🔒 Chave PIX Resguardada</p>
+                    <p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">Por questões de segurança, envie um e-mail para o contacto acima para verificar afinidade e solicitar os dados financeiros.</p>
+                `;
+            }
 
             card.innerHTML = `
                 ${fotoHtml}
@@ -401,8 +459,7 @@
                 <div class="info-privada">
                     <p style="margin: 5px 0 12px 0;"><strong>Contacto Directo:</strong> <a href="mailto:${pedido.email}" class="link-email">${pedido.email}</a></p>
                     <hr style="border-top: 1px dashed #ccc; margin: 10px 0;">
-                    <p style="color: #444; font-weight: 500; margin: 5px 0;">🔒 Chave PIX Resguardada</p>
-                    <p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">Por questões de segurança, envie um e-mail para o contacto acima para verificar afinidade e solicitar os dados financeiros de apoio.</p>
+                    ${blocoPixHtml}
                 </div>
             `;
             carouselCards.appendChild(card);
