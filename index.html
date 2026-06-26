@@ -84,6 +84,7 @@
 
         input[type="text"],
         input[type="email"],
+        select,
         textarea {
             width: 100%;
             padding: 12px;
@@ -138,7 +139,6 @@
             object-fit: cover;
         }
 
-        /* Área de contato resguardada */
         .info-privada {
             background: #e6e6e6;
             padding: 12px;
@@ -188,7 +188,7 @@
     <div class="header">
         <div class="logo">A</div>
         <h1>Rede de Apoio Mútuo</h1>
-        <p class="description">Espaço autogerido para suporte financeiro a companheiros anarquistas. Seus dados não são salvos em nenhum servidor externo e os contatos ficam resguardados.</p>
+        <p class="description">Espaço autogerido para suporte financeiro a companheiros anarquistas. Seus dados ficam salvos localmente e expiram de forma automática após o prazo escolhido.</p>
     </div>
 
     <hr>
@@ -207,6 +207,15 @@
         <div class="form-group">
             <label for="pix">Chave PIX para Depósito *</label>
             <input type="text" id="pix" required placeholder="CPF, Celular ou Chave Aleatória">
+        </div>
+
+        <div class="form-group">
+            <label for="validade">Tempo de Exposição do Pedido *</label>
+            <select id="validade" required>
+                <option value="7">1 Semana</option>
+                <option value="30" selected>1 Mês</option>
+                <option value="365">1 Ano</option>
+            </select>
         </div>
 
         <div class="form-group">
@@ -248,6 +257,7 @@
     let currentIndex = 0;
 
     window.onload = function() {
+        limparPedidosExpirados(); // Limpa antes de carregar o carrossel
         if (getPedidos().length > 0) {
             exibirCarrossel();
         }
@@ -270,12 +280,18 @@
     });
 
     function salvarDados(fotoBase64) {
+        const diasValidade = parseInt(document.getElementById('validade').value);
+        const dataCriacao = new Date().getTime();
+        // Calcula a data de expiração em milissegundos
+        const dataExpiracao = dataCriacao + (diasValidade * 24 * 60 * 60 * 1000);
+
         const novoPedido = {
             nome: document.getElementById('nome').value,
             email: document.getElementById('email').value,
             pix: document.getElementById('pix').value,
             comentarios: document.getElementById('comentarios').value,
-            foto: fotoBase64
+            foto: fotoBase64,
+            expiraEm: dataExpiracao
         };
 
         let pedidos = getPedidos();
@@ -291,9 +307,24 @@
         return dados ? JSON.parse(dados) : [];
     }
 
+    // Função que varre a lista e remove os que já venceram o prazo
+    function limparPedidosExpirados() {
+        const pedidos = getPedidos();
+        const agora = new Date().getTime();
+        
+        // Filtra mantendo apenas os pedidos que ainda não expiraram
+        const pedidosAtivos = pedidos.filter(pedido => !pedido.expiraEm || pedido.expiraEm > agora);
+        
+        localStorage.setItem('pedidosApoio', JSON.stringify(pedidosAtivos));
+    }
+
     function exibirCarrossel() {
         const pedidos = getPedidos();
-        if (pedidos.length === 0) return;
+        if (pedidos.length === 0) {
+            carouselSection.style.display = 'none';
+            form.style.display = 'block';
+            return;
+        }
 
         form.style.display = 'none';
         carouselSection.style.display = 'block';
@@ -328,7 +359,6 @@
         atualizarCarrossel();
     }
 
-    // Função que faz a mágica de revelar os dados específicos do card
     function revelarDados(index) {
         document.getElementById(`oculto-${index}`).style.display = 'none';
         document.getElementById(`visivel-${index}`).style.display = 'block';
@@ -343,7 +373,6 @@
             if (index === currentIndex) {
                 item.classList.add('active');
                 
-                // Reseta a visualização oculta quando o usuário muda de slide (opcional, para segurança)
                 const oculto = document.getElementById(`oculto-${index}`);
                 const visivel = document.getElementById(`visivel-${index}`);
                 if(oculto && visivel) {
